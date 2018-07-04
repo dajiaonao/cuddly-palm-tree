@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 from subprocess import call
-from PyDE import DE
-#import socket
-from socket import *
+# from PyDE import DE
+import socket
+# from socket import *
 import time
 
 def move(actionList):
@@ -69,13 +70,54 @@ def funX1(x):
 def funX(x):
     return sum([a**2 for a in x])
 
+class feeder:
+    def __init__(self):
+        self.nTry = 5
+
+        ## setup the connection
+        self.udpClient = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        self.udpServer = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        self.addr = None
+        self.setupConnection()
+
+    def setupConnection(self):
+        host = '192.168.1.10'
+        host_rx = ''
+        port = 13141
+        self.addr = (host,port)
+        addr_rx = (host_rx,port)
+        self.udpServer.bind(addr_rx)
+
+    def funX(self,x):
+        return sum([a**2 for a in x])
+    def getL(self,x):
+        bufsize = 1024
+
+        x1 = None
+        x2 = None
+        ### try nTimes to avoid taking data in transitation
+        for i in range(self.nTry):
+            self.udpClient.sendto("check",self.addr)
+            data,addr_r = self.udpServer.recvfrom(bufsize)
+            if x1 is None:
+                if data1[0] != '-100.00': x1 = float(data1[0])
+            if x2 is None:
+                if data1[1] != '-100.00': x2 = float(data1[1])
+            if x1 is not None and x2 is not None:
+                return x1+x2
+        if x1 is None: x1 = -100
+        if x2 is None: x2 = -100
+        return x1 + x2
+
+
 def run():
     x, f = DE(funX, [(-10, 10),(-10,10),(-10,10),(-10,10),(-10,10),(-10,10)]).solve()
     print x,f
 
 def run2():
     from scipy.optimize import minimize
-    res = minimize(funX, [0,0,0,0,0,0], method='nelder-mead', options={'xtol': 1e-8, 'disp': True})
+    tt1 = feeder()
+    res = minimize(tt1.funX, [1,2,3,4,5,6], method='nelder-mead', options={'xtol': 1e-8, 'disp': True})
     print res
 
 def test1():
@@ -84,6 +126,6 @@ def test1():
 if __name__ == '__main__':
     print "testing"
     #test1()
-    #run2()
-    getN()
+    run2()
+#     getN()
     #getL()
