@@ -61,12 +61,6 @@ def getN():
     data,addr_r = udpServer.recvfrom(bufsize)
     print(data)
 
-def funX1(x):
-    # move to location X
-    moveTo(x)
-    # Get the return value
-    return getL()
-
 def funX(x):
     return sum([a**2 for a in x])
 
@@ -90,7 +84,7 @@ class feeder:
 
     def funX(self,x):
         return sum([a**2 for a in x])
-    def getL(self,x):
+    def getL(self):
         bufsize = 1024
 
         x1 = None
@@ -109,6 +103,20 @@ class feeder:
         if x2 is None: x2 = -100
         return x1 + x2
 
+    def moveTo(self,x):
+        al = []
+        for i in range(len(x0)):
+            if self.x0[i] != x[i]:
+                al.append((i, x[i]-self.x0[i]))
+        move(al)
+        self.x0 = x
+
+    def funX1(self, x):
+        # move to location X
+        self.moveTo(x)
+        # Get the return value
+        return self.getL()
+
 
 def run():
     x, f = DE(funX, [(-10, 10),(-10,10),(-10,10),(-10,10),(-10,10),(-10,10)]).solve()
@@ -118,13 +126,31 @@ def run2():
     from scipy.optimize import minimize
     tt1 = feeder()
     res = minimize(tt1.funX, [1,2,3,4,5,6], method='nelder-mead', options={'xtol': 1e-8, 'disp': True})
-    print res
+    print res['x']
+    for x in res['x']:
+        print x
+#     print dir(res.keys())
 
 def test1():
     move([(4,5),(4,-5)])
 
+def testA():
+    tt1 = feeder()
+
+    x, f = DE(ttl.funX1, [(-10, 10),(-10,10),(-10,10),(-10,10),(-10,10),(-10,10)]).solve()
+#     from scipy.optimize import minimize
+#     res = minimize(tt1.funX, [1,2,3,4,5,6], method='nelder-mead', options={'xtol': 1e-8, 'disp': True})
+#     x = res['x']
+#     f = res['fun']
+
+    print x,f
+    tt1.moveTo(x)
+    print "Done."
+
+
 if __name__ == '__main__':
     print "testing"
+#     testA()
     #test1()
     run2()
 #     getN()
