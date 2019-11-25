@@ -65,11 +65,11 @@ def takeData(channels=[1],filename='temp1.dat'):
     print "Timebase_Position:%.6f"%Timebase_Poistion
 
     ss.send(":WAVeform:XRANge?;")               #Query X-axis range 
-    X_Range = float(ss.recv(128)[1:])
+    X_Range = float(ss.recv(128))
     print "XRange:%g"%X_Range
 
     ss.send(":ACQuire:POINts:ANALog?;")         #Query analog store depth
-    Sample_point = int(ss.recv(128)[1:]) - 3   
+    Sample_point = int(ss.recv(128)) - 3   
     print "Sample Point:%d"%Sample_point
     
     ss.send(":WAVeform:XUNits?;")               #Query X-axis unit 
@@ -330,33 +330,30 @@ class Oscilloscope:
 
         self.send("*IDN?;")                           #read back device ID
         print "Instrument ID: %s"%ss.recv(128)
-        if step < 1: return
+#         if step < 1: return
 
-
-    def takeData(self, channels=[1], filename='temp1.dat'):
-        '''Loop over channels and save data to file with name filename'''
-        Timebase_scale = 0
-        self.send("*IDN?;")                           #read back device ID
-        print "Instrument ID: %s"%ss.recv(128)   
-
+        ss.send(":SYSTem:HEADer OFF;")              #Query analog store depth
         self.send(":WAVeform:SOURce CHANnel1;")       #Waveform source 
         self.send(":TIMebase:POSition?;")             #Query X-axis timebase position 
-        Timebase_Poistion = float(ss.recv(128)[1:])
-        print "Timebase_Position:%.6f"%Timebase_Poistion
+        Timebase_Poistion = ss.recv(128)
+        print Timebase_Poistion
+        Timebase_Poistion = float(Timebase_Poistion)
 
         self.send(":WAVeform:XRANge?;")               #Query X-axis range 
-        X_Range = float(ss.recv(128)[1:])
-        print "XRange:%g"%X_Range
+        X_Range = ss.recv(128)
+        print X_Range
+        X_Range = float(X_Range)
 
         self.send(":ACQuire:POINts:ANALog?;")         #Query analog store depth
-        Sample_point = int(ss.recv(128)[1:]) - 3   
-        print "Sample Point:%d"%Sample_point
+        Sample_point = ss.recv(128)  
+        print Sample_point
+        Sample_point = int(Sample_point) - 3
         
         self.send(":WAVeform:XUNits?;")               #Query X-axis unit 
-        print "X-axis Unit:%s"%(ss.recv(128)[1:])   
+        print "X-axis Unit:%s"%(ss.recv(128))   
 
         self.send(":WAVeform:YUNits?;")               #Query Y-axis unit 
-        print "Y-axis Unit:%s"%(ss.recv(128)[1:])   
+        print "Y-axis Unit:%s"%(ss.recv(128))   
 
         if X_Range >= 2.0:
             Xrange = np.arange(-X_Range/2.0,X_Range/2.0,X_Range*1.0/Sample_point)
@@ -376,7 +373,68 @@ class Oscilloscope:
             x_unit = 4
 
         self.send(":ACQuire:SRATe:ANALog?;")          #Query sample rate
-        Sample_Rate = float(ss.recv(128)[1:])   
+        Sample_Rate = float(ss.recv(128))   
+        print "Sample rate:%.1f"%Sample_Rate
+        total_point = int(Sample_Rate * X_Range)
+        print total_point
+
+#         ss.send(":SYSTem:HEADer ON;")              #Query analog store depth
+        self.send(":ACQuire:POINts:ANALog?;")         #Query analog store depth
+        print ss.recv(128)
+
+        return
+        Sample_point = int(ss.recv(128)[1:]) - 3   
+        print "Sample Point:%d"%Sample_point
+ 
+
+    def takeData(self, channels=[1], filename='temp1.dat'):
+        '''Loop over channels and save data to file with name filename'''
+        self.connect()
+        ss = self.ss
+
+        Timebase_scale = 0
+        self.send("*IDN?;")                           #read back device ID
+        print "Instrument ID: %s"%ss.recv(128)   
+
+        self.send(":SYSTem:HEADer OFF;")              #Query analog store depth
+        self.send(":WAVeform:SOURce CHANnel1;")       #Waveform source 
+        self.send(":TIMebase:POSition?;")             #Query X-axis timebase position 
+        Timebase_Poistion = float(ss.recv(128))
+        print "Timebase_Position:%.6f"%Timebase_Poistion
+
+        self.send(":WAVeform:XRANge?;")               #Query X-axis range 
+        X_Range = float(ss.recv(128))
+        print "XRange:%g"%X_Range
+
+        self.send(":ACQuire:POINts:ANALog?;")         #Query analog store depth
+        Sample_point = int(ss.recv(128)) - 3   
+        print "Sample Point:%d"%Sample_point
+        
+        self.send(":WAVeform:XUNits?;")               #Query X-axis unit 
+        print "X-axis Unit:%s"%(ss.recv(128))   
+
+        self.send(":WAVeform:YUNits?;")               #Query Y-axis unit 
+        print "Y-axis Unit:%s"%(ss.recv(128))   
+
+        if X_Range >= 2.0:
+            Xrange = np.arange(-X_Range/2.0,X_Range/2.0,X_Range*1.0/Sample_point)
+            Timebase_Poistion_X = Timebase_Poistion
+            x_unit = 1
+        elif X_Range < 2.0 and X_Range >= 0.002:
+            Xrange = np.arange((-X_Range*1000)/2.0,(X_Range*1000)/2.0,X_Range*1000.0/Sample_point)
+            Timebase_Poistion_X = Timebase_Poistion * 1000.0
+            x_unit = 2
+        elif X_Range < 0.002 and X_Range >= 0.000002:
+            Xrange = np.arange((-X_Range*1000000)/2.0,(X_Range*1000000)/2.0,X_Range*1000000.0/Sample_point)
+            Timebase_Poistion_X = Timebase_Poistion * 1000000.0
+            x_unit = 3
+        else:
+            Xrange = np.arange((-X_Range*1000000000)/2.0,(X_Range*1000000000)/2.0,X_Range*1000000000.0/Sample_point)
+            Timebase_Poistion_X = Timebase_Poistion * 1000000000.0
+            x_unit = 4
+
+        self.send(":ACQuire:SRATe:ANALog?;")          #Query sample rate
+        Sample_Rate = float(ss.recv(128))   
         print "Sample rate:%.1f"%Sample_Rate
         total_point = int(Sample_Rate * X_Range)
         print total_point
@@ -395,12 +453,12 @@ class Oscilloscope:
 
             ## offset
             self.send(":CHANnel{0:d}:OFFset?;".format(iChan))               #Channel1 Offset 
-            CH1_Offset = float(ss.recv(128)[1:])   
+            CH1_Offset = float(ss.recv(128))   
             print "Channel %d Offset:%f"%(iChan, CH1_Offset)
 
             ### Y-range
             self.send(":WAVeform:YRANge?;")               #Query Y-axis range
-            Y_Range = float(ss.recv(128)[1:])   
+            Y_Range = float(ss.recv(128))   
             print "YRange:%f"%Y_Range
             Y_Factor = Y_Range/62712.0
             print Y_Factor
@@ -408,7 +466,7 @@ class Oscilloscope:
             ### get data
             self.send(":WAVeform:DATA? 1,%d;"%total_point)         #Query waveform data with start address and length
 
-            ### Why these magic numbers 2 and 3? A number contains 2 words? And there is a header with 3 words?
+            ### There is a header with 3 words. Each data point contains 2 words.
             n = total_point * 2 + 3
             print "n = %d"%n                            #calculate fetching data byte number
             totalContent = ""
@@ -418,13 +476,14 @@ class Oscilloscope:
                 totalContent += onceContent
                 totalRecved = len(totalContent)
             length = len(totalContent[3:])/2              #print length
+
             if length != total_point:
                 print iChan, 'data length:', length, 'NOT as expected', total_point
 
             for i in range(length):              #store data into file
                 ### combine two words to form the number
-                digital_number = (ord(totalContent[3+i*2+1])<<8)+ord(totalContent[3+i*2])
-                if (ord(totalContent[3+i*2+1]) & 0x80) == 0x80:             
+                digital_number = (ord(totalContent[3+i*2])<<8)+ord(totalContent[3+i*2+1])
+                if (ord(totalContent[3+i*2]) & 0x80) == 0x80:             
                     data_i[i] = (digital_number - 65535+1000)*Y_Factor + CH1_Offset
                 else:
                     data_i[i] = (digital_number+1000)*Y_Factor + CH1_Offset
@@ -442,14 +501,14 @@ class Oscilloscope:
      
             fout.write('\n#time '+' '.join(['chan'+str(ichan) for ichan in channels]))
             for i in range(length-1):
-                print i
                 text = '\n{0:g} '.format(Xrange[i] + Timebase_Poistion_X)
                 text += ' '.join(['{0:g}'.format(x[i]) for x in data])
                 fout.write(text)
 
 def test1():
     oc1 = Oscilloscope('Agilent MSO9104A',addr='192.168.2.4:5025')
-    oc1.test(0)
+#     oc1.test(0)
+    oc1.takeData([1,2])
 
 if __name__ == '__main__':
     test1()
