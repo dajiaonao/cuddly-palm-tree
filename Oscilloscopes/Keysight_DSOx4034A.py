@@ -49,70 +49,11 @@ class Oscilloscope:
         print(Timebase_Poistion)
         Timebase_Poistion = float(Timebase_Poistion)
 
-    def saveData(self,channels=[1], filename='temp1.dat'):
-        ss = self.ss
-        data_0 = None
-        data = []
-        ######### Channel i ###########
-        for iChan in channels: 
-            print("Start channel {0}".format(iChan))
-
-            ### waveform
-            self.send(":WAVeform:SOURce CHANnel{0:d};".format(iChan))       #Waveform source 
-            ### meta data
-            self.send(":WAVeform:PREamble?;")
-            a = ss.recv(256) ### the data is longer than 128
-            print(a)
-            pre = a.split(',')
-
-            total_point = int(pre[2])
-            xInc = float(pre[4])
-            xOrig = float(pre[5])
-            xRef = float(pre[6])
-            yInc = float(pre[7])
-            yOrig = float(pre[8])
-            yRef = int(float(pre[9]))
-
-            ### get data
-            self.send(":WAVeform:DATA? 1,%d;"%total_point)  #Query waveform data with start address and length
-
-            ### There is a header with 2 words. Each data point contains 2 words. And there is a END at the end.
-            n = total_point * 2 + 3
-            print("n = %d"%n)                            #calculate fetching data byte number
-            totalContent = ""
-            totalRecved = 0
-            while totalRecved < n:                      #fetch data
-                onceContent = ss.recv(int(n - totalRecved))
-                totalContent += onceContent
-                totalRecved = len(totalContent)
-
-            pureData = totalContent[2:-1]
-            length = len(pureData)/2              #print length
-
-            if length != total_point:
-                print(iChan, 'data length:', length, 'NOT as expected', total_point)
-
-            #store data into file
-            data_i = [((ord(pureData[i*2+1])<<8)+ord(pureData[i*2])-(ord(pureData[i*2+1])&0x80)/0x80*65535 - yRef)*yInc+yOrig for i in range(length)]
-            if data_0 is None: data_0 = [(i - xRef)*xInc+xOrig for i in range(length)]
-
-            data.append(data_i)
-
-        #### write out: basic info, t, chanI
-        with open(filename,'w') as fout:
-            ### X_Range,Y_Range,CH1_Offset,Timebase_Poistion
-            fout.write('\n#time '+' '.join(['chan'+str(ichan) for ichan in channels]))
-            for i in range(length-1):
-                text = '\n{0:g} '.format(data_0[i])
-                text += ' '.join(['{0:g}'.format(x[i]) for x in data])
-                fout.write(text)
-
     def takeData(self, channels=[1], filename='temp1.dat'):
         '''Loop over channels and save data to file with name filename'''
         self.connect()
         ss = self.ss
 
-        Timebase_scale = 0
         self.send("*IDN?;")                           #read back device ID
         print("Instrument ID: %s"%ss.recv(128))   
 
@@ -130,8 +71,12 @@ class Oscilloscope:
         self.send(":WAVeform:BYTeorder LSBFirst;")    #Waveform data byte order
         self.send(":WAVeform:FORMat WORD;")           #Waveform data format
         self.send(":WAVeform:UNSigned OFF;")           #Waveform data format
-#         self.send(":WAVeform:STReaming 1;")           #Waveform streaming on
 
+        self.saveData(channels, filename)
+
+    def saveData(self, channels=[1], filename='temp1.dat'):
+        '''Loop over channels and save data to file with name filename. 
+        No cofiguration is done in this function'''
         data_0 = None
         data = []
         ######### Channel i ###########
@@ -156,7 +101,6 @@ class Oscilloscope:
 
             ### get data
             self.send(":WAVeform:DATA?")  #Query waveform data with start address and length. No arguments needed for Keysight DSO-x 4034A
-
 
             ### There is a header with 2 words. Each data point contains 2 words. And there is a END at the end.
             totalContent = ss.recv(20)
@@ -192,30 +136,35 @@ class Oscilloscope:
                 text += ' '.join(['{0:g}'.format(x[i]) for x in data])
                 fout.write(text)
 
-    def testMore(self):
-        '''Loop over channels and save data to file with name filename'''
+    def takeSamples(self, N=10, sampleTag='test_', chanlist=[1]):
+        '''Loop over channels and save data to file with name filename.
+        Run mutiple times, with the trigger defined outside.'''
         self.connect()
         ss = self.ss
 
-        Timebase_scale = 0
         self.send("*IDN?;")                           #read back device ID
         print("Instrument ID: %s"%ss.recv(128))   
 
-        self.send(":SYSTem:HEADer OFF;")              #Query analog store depth
+        self.send(":ACQuire:SRATe:ANALog?;")          #Query sample rate
+        Sample_Rate = float(ss.recv(128))   
+        print("Sample rate:%.1f"%Sample_Rate)
+
+        ### other config
+        self.send(":ACQuire:TYPE NORMal;")          #data acquire type, could be AVERage | HRESolution | PEAK
         self.send(":WAVeform:BYTeorder LSBFirst;")    #Waveform data byte order
         self.send(":WAVeform:FORMat WORD;")           #Waveform data format
-        self.send(":WAVeform:STReaming 1;")           #Waveform streaming on
+        self.send(":WAVeform:UNSigned OFF;")           #Waveform data format
 
         for i in range(10):
             ss.send(":SINGle;")
-            self.saveData([3],'test_data_{0:d}.dat'.format(i))
+            self.saveData(chanlist,'{1}data_{0:d}.dat'.format(i, sampleTag))
             ss.send(":RUN;")
 
 def test1():
     oc1 = Oscilloscope('Agilent MSO9104A',addr='192.168.2.6:5025')
-#     oc1.testMore()
 #     oc1.test(0)
     oc1.takeData([1])
+    oc1.takeSamples(10)
 
 if __name__ == '__main__':
     test1()
